@@ -1,4 +1,3 @@
-"""
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -6,6 +5,8 @@ import matplotlib.pyplot as plt
 import pygame
 import sys
 from keras.datasets import mnist
+import numpy as np
+import random as rnd
 
 class Trainer:
     def __init__(self, model, optimizer, loss_fn, device =None):
@@ -40,40 +41,9 @@ class Trainer:
             loss = self.loss_fn(outputs, targets)
             total_loss += loss.item()
         return total_loss / len(dataloader)
-"""
-import numpy as np
-import random as rnd
 
-#train_X = [np.sin(np.arange(0, 10, 0.4) + rnd.random()) for i in range(100)]
-train_X = [np.arange(0, 3, 1) * (1 + rnd.random()) + 7 * rnd.random() for i in range(20)]
-data_dim = len(train_X[0])
+(train_X, train_y), (test_X, test_y) = mnist.load_data()
 
-encode_dim = 2
-A = np.random.random((encode_dim, data_dim)) / np.sqrt(encode_dim * data_dim)
-B = np.random.random((data_dim, encode_dim)) / np.sqrt(encode_dim * data_dim)
-
-avg_x = np.average(train_X)
-covariance_matrix = np.zeros((data_dim, data_dim))
-for x in train_X:
-    x_tilde = x - avg_x
-    covariance_matrix += np.outer(x_tilde, x_tilde)
-covariance_matrix /= len(train_X)
-
-def cost():
-    sum = 0.0
-    for x in train_X:
-        x_tilde = x - avg_x
-        sum += np.linalg.norm(B @ A @ x_tilde - x_tilde)
-    return sum
-
-for step in range(5000):
-    temp = B @ A @ covariance_matrix - covariance_matrix
-    dA = B.T @ temp
-    B -= 0.02 * temp @ A.T
-    A -= 0.02 * dA
-print(B @ A)
-print(cost())
-"""
 pygame.init()
 screen = pygame.display.set_mode((600, 400))
 pygame.display.set_caption("Two Grayscale Matrices")
@@ -92,8 +62,15 @@ clock = pygame.time.Clock()
 running = True
 
 matrix1 = np.array(train_X[0])
-matrix2 = (B @ A @ np.array(train_X[0]).flatten()).reshape(28, 28)
-print(matrix2)
+model = nn.Sequential(
+    nn.Flatten(),
+    nn.Linear(28 * 28, 32),
+    nn.Linear(32, 28 * 28)
+)
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+loss_fn = nn.CrossEntropyLoss()
+trainer = Trainer(model, optimizer, loss_fn)
+print(model(torch.tensor(train_X[0], dtype=torch.float)))
 
 while running:
     clock.tick(60)
@@ -103,24 +80,7 @@ while running:
             running = False
     screen.fill((255, 255, 255))
     draw_matrix(screen, matrix1, 5, 5, 5)
-    draw_matrix(screen, matrix2, 5, 5 + 29 * 5, 5)
     pygame.display.flip()
 
 pygame.quit()
 sys.exit()
-"""
-
-"""
-    model = nn.Sequential(
-        nn.Linear(28 * 28, 32),
-        nn.ReLU(),
-        nn.Linear(32, 32),
-        nn.ReLU(),
-        nn.Linear(32, 10),
-        nn.Sigmoid()
-    )
-    optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-    loss_fn = nn.CrossEntropyLoss()
-    trainer = Trainer(model, optimizer, loss_fn)
-    print(model(torch.flatten(torch.tensor(train_X[0], dtype=torch.float) / 256.0)))
-"""
