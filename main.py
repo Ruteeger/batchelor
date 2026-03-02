@@ -42,13 +42,49 @@ class Trainer:
             total_loss += loss.item()
         return total_loss / len(dataloader)
 
+class AutoEncoder(nn.Module):
+    def __init__(self, encoder, decoder):
+        super(AutoEncoder, self).__init__()
+        self.encoder = encoder
+        self.decoder = decoder
+
+    def forward(self, x):
+        return self.decoder(self.encoder(x))
+
 (train_X, train_y), (test_X, test_y) = mnist.load_data()
+model_encoder = nn.Sequential(
+    nn.Flatten(0),
+    nn.Linear(784, 32)
+)
+model_decoder = nn.Sequential(
+    nn.Linear(32, 784)
+)
+model = AutoEncoder(model_encoder, model_decoder)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.004)
+trainer = Trainer(model, optimizer, nn.MSELoss())
+
+training_data = []
+for x in train_X:
+    training_data.append((torch.tensor(x, dtype=torch.float), torch.flatten(torch.tensor(x, dtype=torch.float))))
+
+    for step in range(1200):
+        batch = rnd.sample(training_data, 200)
+        loss = trainer.train_batch(batch)
+        print(f"batch: {step}, loss = {loss}")
+
+
+
+
+
+
+
+
 
 pygame.init()
 screen = pygame.display.set_mode((600, 400))
 pygame.display.set_caption("Two Grayscale Matrices")
 
-def draw_matrix(scrn, matrix, size, x, y):
+def draw_matrix(scrn, matrix, x, y, size):
     rows, cols = matrix.shape
     for row in range(rows):
         for col in range(cols):
@@ -61,16 +97,8 @@ def draw_matrix(scrn, matrix, size, x, y):
 clock = pygame.time.Clock()
 running = True
 
-matrix1 = np.array(train_X[0])
-model = nn.Sequential(
-    nn.Flatten(),
-    nn.Linear(28 * 28, 32),
-    nn.Linear(32, 28 * 28)
-)
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
-loss_fn = nn.CrossEntropyLoss()
-trainer = Trainer(model, optimizer, loss_fn)
-print(model(torch.tensor(train_X[0], dtype=torch.float)))
+matrix1 = train_X[0]
+matrix2 = model(torch.tensor(matrix1, dtype=torch.float)).reshape(28, 28)
 
 while running:
     clock.tick(60)
@@ -78,8 +106,13 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        if event.type == pygame.KEYDOWN:
+            if event.key == 13: # enter
+                matrix1 = rnd.choice(train_X)
+                matrix2 = model(torch.tensor(matrix1, dtype=torch.float)).reshape(28, 28)
     screen.fill((255, 255, 255))
     draw_matrix(screen, matrix1, 5, 5, 5)
+    draw_matrix(screen, matrix2, 5 + 28 * 5 + 5, 5, 5)
     pygame.display.flip()
 
 pygame.quit()
